@@ -7,5 +7,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('admin_geoger.urls')),
     path('api-token-auth/', obtain_auth_token),
+    path('api/', include('admin_geoger.urls')),
     
 ]
