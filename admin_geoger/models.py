@@ -10,7 +10,7 @@ class Empleado(models.Model):
     puesto = models.CharField(max_length=100)
     fecha_registro =models.DateTimeField(auto_now_add=True)
 
-class direccion(models.Model):
+class Direccion(models.Model):
     empleado= models.ForeignKey(Empleado,on_delete=models.CASCADE)
     latitud=models.CharField(max_length=20)
     longitud= models.CharField(max_length=20)

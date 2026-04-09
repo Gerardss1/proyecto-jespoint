@@ -1,7 +1,7 @@
 from rest_framework import serializers
-from .models import direccion
+from .models import Direccion
 
 class DireccionSerializer(serializers.ModelSerializer):
     class Meta:
-        model = direccion
+        model = Direccion
         fields = "__all__"

@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Empleados</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+
+<style>
+body{
+    margin:0;
+    font-family: 'Inter', sans-serif;
+    display:flex;
+    height:100vh;
+}
+
+/* SIDEBAR */
+.sidebar{
+    width:320px;
+    background:#0f172a;
+    color:white;
+    padding:20px;
+    display:flex;
+    flex-direction:column;
+}
+
+.sidebar h2{
+    margin-bottom:20px;
+}
+
+.sidebar input{
+    width:100%;
+    padding:10px;
+    margin-bottom:10px;
+    border-radius:8px;
+    border:none;
+}
+
+.sidebar button{
+    width:100%;
+    padding:10px;
+    margin-bottom:10px;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+    font-weight:500;
+}
+
+/* BOTONES */
+.btn-primary{ background:#3b82f6; color:white; }
+.btn-secondary{ background:#64748b; color:white; }
+.btn-danger{ background:#ef4444; color:white; }
+
+/* MAIN */
+.main{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+}
+
+#map{
+    flex:1;
+}
+
+/* CARDS */
+.cards{
+    overflow-y:auto;
+    max-height:300px;
+    margin-top:10px;
+}
+
+.card{
+    background:white;
+    color:#111;
+    padding:15px;
+    margin-bottom:12px;
+    border-radius:12px;
+    box-shadow:0 4px 10px rgba(0,0,0,0.1);
+}
+
+.card h3{
+    margin:0;
+}
+
+.card p{
+    margin:5px 0;
+    color:#555;
+}
+
+.card-buttons{
+    display:flex;
+    gap:10px;
+    margin-top:10px;
+}
+
+.card-buttons button{
+    flex:1;
+}
+
+/* RESPONSIVE */
+@media(max-width:900px){
+    body{
+        flex-direction:column;
+    }
+
+    .sidebar{
+        width:100%;
+        height:auto;
+    }
+
+    #map{
+        height:300px;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div class="sidebar">
+    <h2>👨‍💼 Empleados</h2>
+
+    <input type="text" id="nombre" placeholder="Nombre">
+    <input type="text" id="puesto" placeholder="Puesto">
+
+    <button class="btn-primary" onclick="guardarEmpleado()">💾 Guardar</button>
+    <button class="btn-secondary" onclick="limpiarFormulario()">🧹 Limpiar</button>
+    <button class="btn-secondary" onclick="window.location.href='/home'">⬅ Volver</button>
+
+    <div class="cards" id="lista"></div>
+</div>
+
+<div class="main">
+    <div id="map"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script>
+const API = "http://127.0.0.1:8000";
+
+let empleadoEditando = null;
+let latitudSeleccionada = null;
+let longitudSeleccionada = null;
+let markerActual = null;
+
+// MAPA
+const map = L.map('map').setView([32.5, -116.9], 12);
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png')
+.addTo(map);
+
+// CLICK EN MAPA
+map.on('click', function(e){
+    latitudSeleccionada = e.latlng.lat;
+    longitudSeleccionada = e.latlng.lng;
+
+    if(markerActual){
+        map.removeLayer(markerActual);
+    }
+
+    markerActual = L.marker([latitudSeleccionada, longitudSeleccionada])
+        .addTo(map)
+        .bindPopup("📍 Ubicación seleccionada")
+        .openPopup();
+});
+
+// CARGAR EMPLEADOS
+async function cargarEmpleados(){
+    const res = await fetch(`${API}/api/empleados/`);
+    const data = await res.json();
+
+    const lista = document.getElementById("lista");
+    lista.innerHTML = "";
+
+    data.forEach(e => {
+
+        let ubicacionTexto = "Sin ubicación";
+
+        if(e.ubicaciones.length > 0){
+            const u = e.ubicaciones[e.ubicaciones.length - 1];
+            ubicacionTexto = `${u.latitud}, ${u.longitud}`;
+        }
+
+        lista.innerHTML += `
+        <div class="card">
+            <h3>${e.nombre}</h3>
+            <p>💼 ${e.puesto}</p>
+            <p>📍 ${ubicacionTexto}</p>
+
+            <div class="card-buttons">
+                <button class="btn-secondary" onclick='seleccionarEmpleado(${JSON.stringify(e)})'>
+                    ✏️ Editar
+                </button>
+
+                <button class="btn-danger" onclick="eliminarEmpleado(${e.id})">
+                    🗑️ Eliminar
+                </button>
+            </div>
+        </div>
+        `;
+    });
+}
+
+// EDITAR
+function seleccionarEmpleado(emp){
+    empleadoEditando = emp.id;
+
+    document.getElementById("nombre").value = emp.nombre;
+    document.getElementById("puesto").value = emp.puesto;
+
+    if(emp.ubicaciones.length > 0){
+        const u = emp.ubicaciones[emp.ubicaciones.length - 1];
+
+        latitudSeleccionada = u.latitud;
+        longitudSeleccionada = u.longitud;
+
+        map.setView([u.latitud, u.longitud], 13);
+
+        if(markerActual){
+            map.removeLayer(markerActual);
+        }
+
+        markerActual = L.marker([u.latitud, u.longitud])
+            .addTo(map)
+            .bindPopup("📍 Ubicación actual")
+            .openPopup();
+    }
+}
+
+// GUARDAR
+async function guardarEmpleado(){
+
+    if(!latitudSeleccionada){
+        alert("Selecciona ubicación en el mapa");
+        return;
+    }
+
+    const data = {
+        nombre: document.getElementById("nombre").value,
+        puesto: document.getElementById("puesto").value,
+        latitud: latitudSeleccionada,
+        longitud: longitudSeleccionada
+    };
+
+    if(empleadoEditando){
+        await fetch(`${API}/api/empleado/${empleadoEditando}/editar/`, {
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify(data)
+        });
+        alert("Empleado actualizado");
+    }else{
+        await fetch(`${API}/api/empleado/crear/`, {
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify(data)
+        });
+        alert("Empleado creado");
+    }
+
+    limpiarFormulario();
+    cargarEmpleados();
+}
+
+// ELIMINAR
+async function eliminarEmpleado(id){
+    if(confirm("¿Eliminar empleado?")){
+        await fetch(`${API}/api/empleado/${id}/eliminar/`, {
+            method:"DELETE"
+        });
+        cargarEmpleados();
+    }
+}
+
+// LIMPIAR
+function limpiarFormulario(){
+    empleadoEditando = null;
+    document.getElementById("nombre").value = "";
+    document.getElementById("puesto").value = "";
+}
+
+// INIT
+cargarEmpleados();
+
+</script>
+
+</body>
+</html>

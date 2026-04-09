@@ -5,197 +5,143 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Gespoint</title>
 
-<!-- Google Font -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
-
-<!-- Leaflet CSS -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
 <style>
-*{
-  margin:0;
-  padding:0;
-  box-sizing:border-box;
-  font-family: 'Inter', sans-serif;
-}
-
 body{
+  margin:0;
+  font-family: 'Inter', sans-serif;
   display:flex;
   height:100vh;
-  background:#f4f6f9;
 }
 
-/* SIDEBAR */
 .sidebar{
-  width:250px;
-  background:white;
-  padding:25px 20px;
-  display:flex;
-  flex-direction:column;
-  justify-content:space-between;
-  border-right:1px solid #e5e7eb;
+  width:200px;
+  background:#111827;
+  color:white;
+  padding:20px;
 }
 
-.logo{
-  font-size:20px;
-  font-weight:600;
-  margin-bottom:40px;
+.sidebar h2{
+  margin-bottom:20px;
 }
 
-.sidebar nav a{
-  display:block;
-  padding:12px;
-  margin-bottom:8px;
-  text-decoration:none;
-  color:#555;
-  border-radius:8px;
-  transition:.2s;
-}
-
-.sidebar nav a:hover{
-  background:#f0f3ff;
-  color:#3b82f6;
-}
-
-.sidebar nav a.active{
-  background:#e0e7ff;
-  color:#3b82f6;
-  font-weight:600;
-}
-
-.logout{
-  background:none;
-  border:none;
-  color:#777;
-  cursor:pointer;
+.sidebar button{
+  width:100%;
+  margin-bottom:10px;
   padding:10px;
-  text-align:left;
+  border:none;
+  background:#3b82f6;
+  color:white;
+  border-radius:6px;
+  cursor:pointer;
 }
 
-/* MAIN */
 .main{
   flex:1;
   display:flex;
   flex-direction:column;
 }
 
-/* TOPBAR */
 .topbar{
-  height:70px;
-  background:white;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:0 30px;
-  border-bottom:1px solid #e5e7eb;
-}
-
-.search{
-  width:400px;
-  padding:10px 15px;
-  border-radius:25px;
-  border:1px solid #ddd;
-  outline:none;
+  height:60px;
   background:#f9fafb;
-}
-
-.user{
   display:flex;
   align-items:center;
-  gap:10px;
-  font-weight:500;
+  padding:0 20px;
+  border-bottom:1px solid #ddd;
 }
 
-/* MAP */
 #map{
   flex:1;
 }
-
-/* MAP CONTROLS */
-.map-controls{
-  position:absolute;
-  bottom:30px;
-  right:30px;
-  display:flex;
-  gap:15px;
-}
-
-.map-controls button{
-  width:45px;
-  height:45px;
-  border-radius:50%;
-  border:none;
-  background:white;
-  font-size:18px;
-  cursor:pointer;
-  box-shadow:0 4px 10px rgba(0,0,0,0.1);
-  transition:.2s;
-}
-
-.map-controls button:hover{
-  transform:scale(1.1);
-}
-
-/* RESPONSIVE */
-@media(max-width:900px){
-  .sidebar{
-    width:200px;
-  }
-  .search{
-    width:200px;
-  }
-}
-
 </style>
 </head>
 
 <body>
 
-<!-- SIDEBAR -->
 <div class="sidebar">
-  <div>
-    <div class="logo">📍 Gespoint</div>
-    <nav>
-      <a href="#" class="active">Home</a>
-      <a href="#">Mi ubicación</a>
-      <a href="#">Historial</a>
-      <a href="#">Casa</a>
-      <a href="#">Favoritos</a>
-    </nav>
-  </div>
-  <button class="logout">Salir</button>
+  <h2>📍 Gespoint</h2>
+
+  <button onclick="window.location.href='/empleados/'">
+  Ver empleados
+</button>
+  <button onclick="cargarUbicaciones()">Ver ubicaciones</button>
+  <button onclick="obtenerUbicacion()">📡 Mi ubicación</button>
+
+  <ul id="empleados"></ul>
 </div>
 
-<!-- MAIN -->
 <div class="main">
-
   <div class="topbar">
-    <input type="text" class="search" placeholder="Buscar ubicación...">
-    <div class="user">👤 Mi Perfil</div>
+    <h3>Home</h3>
   </div>
 
   <div id="map"></div>
-
-  <div class="map-controls">
-    <button onclick="map.zoomIn()">+</button>
-    <button onclick="map.zoomOut()">−</button>
-  </div>
-
 </div>
 
-<!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
-var map = L.map('map').setView([32.6245, -115.4523], 14);
+const API = "http://127.0.0.1:8000";
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '&copy; OpenStreetMap contributors'
+// MAPA
+const map = L.map('map').setView([32.5, -116.9], 12);
+
+// CAPA BONITA (la que ya arreglaste)
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap &copy; CartoDB',
+    subdomains: 'abcd',
+    maxZoom: 19
 }).addTo(map);
 
-L.marker([32.499944, -116.9306264]).addTo(map)
-  .bindPopup('Ubicación actual')
-  .openPopup();
+// 🔥 IMPORTANTE
+let markers = [];
+
+// CARGAR EMPLEADOS
+function irEmpleados(){
+    window.location.href = "/empleados/";
+}
+
+// CARGAR UBICACIONES
+async function cargarUbicaciones() {
+    console.log("CLICK en ubicaciones"); // 👈 DEBUG
+
+    const res = await fetch(`${API}/api/ubicaciones/`);
+    const data = await res.json();
+
+    console.log(data); // 👈 VER SI LLEGA INFO
+
+    markers.forEach(m => map.removeLayer(m));
+    markers = [];
+
+    data.forEach(u => {
+        const marker = L.marker([u.latitud, u.longitud])
+            .addTo(map)
+            .bindPopup(`
+                <b>${u.empleado}</b><br>
+                ${u.fecha}
+            `);
+
+        markers.push(marker);
+    });
+}
+
+// UBICACIÓN ACTUAL
+function obtenerUbicacion() {
+    navigator.geolocation.getCurrentPosition(pos => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+
+        L.marker([lat, lng])
+          .addTo(map)
+          .bindPopup("📍 Mi ubicación")
+          .openPopup();
+
+        map.setView([lat, lng], 13);
+    });
+}
 </script>
 
 </body>
